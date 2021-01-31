@@ -1,5 +1,4 @@
-import datetime
-import pygame, sys, sqlite3, time, os, pygame_gui
+import datetime, pygame, sys, sqlite3, time, os, pygame_gui
 import random as rd
 from load_image import load_image
 
@@ -13,10 +12,12 @@ def terminate():
 
 
 def start_screen(screen):
+    # приветсвенное окно
     clock = pygame.time.Clock()
     fon = pygame.transform.scale(load_image('фон.jpg'), WINDOW_SIZE)
     screen.blit(fon, (0, 0))
     font_name = pygame.font.match_font('Icegirl Regular', bold=True)
+    pygame.display.set_caption('Hungry Monkeys')  # Изменяем заголовок окна
 
     # это текст, который мы выведем на приветственный экран
     intro_text = ["              Hungry Monkeys",
@@ -24,6 +25,7 @@ def start_screen(screen):
                   '                                       УСПЕЙ НАКОРМИТЬ ВСЕХ ОБЕЗЬЯН',
                   '                       КЛИКНИ МЫШКОЙ, ЧТОБЫ НАЧАТЬ']
     text_coord = 160
+    # печатаем текст
     for i, line in enumerate(intro_text):
         if i == 0:
             font = pygame.font.Font(font_name, 60)
@@ -50,6 +52,7 @@ def start_screen(screen):
     fon = pygame.transform.scale(load_image('fon2.png'), (80, 50))
     screen.blit(fon, (20, -2))
 
+    # игровой цикл
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -97,6 +100,7 @@ def print_text(screen, text):
 
 
 class SpriteMonkey(pygame.sprite.Sprite):
+    # это спрайт обезьяны, которая расположена на экране конца игры (при нажатии на нее слышен звук)
     def __init__(self, image, x, y, *group):
         super().__init__(*group)
         self.image = image
@@ -109,8 +113,32 @@ class SpriteMonkey(pygame.sprite.Sprite):
 def end_screen(screen, score):  # окно после конца игры, проигрыша
     fon = pygame.transform.scale(load_image('фон.jpg'), WINDOW_SIZE)
     screen.blit(fon, (0, 0))
-    m = False
+    fl = False
     sprites = pygame.sprite.Group()
+
+    manager = pygame_gui.UIManager(WINDOW_SIZE)
+    clock = pygame.time.Clock()
+    pygame.mouse.set_visible(True)
+    switch = pygame_gui.elements.UIButton(
+        relative_rect=pygame.Rect((270, 180), (250, 50)),
+        text='Сыграть еще раз',
+        manager=manager)
+
+    if score < 100: # если очков меньше 100
+        s = pygame.mixer.Sound('data/game_over.mp3')  # загружаем звук проигрыша
+        text = ['         Вы проиграли,', 'набрав меньше 100 очков!']
+    else:
+        s = pygame.mixer.Sound('data/game_win.mp3')  # загружаем звук выигрыша
+        text = ['         Вы выиграли,', 'набрав больше 100 очков!']
+
+    img = pygame.transform.scale(load_image('fon1.png'), (97, 133))
+    m = SpriteMonkey(img, 120, 250, sprites) # рисуем обезьяну
+
+    s.set_volume(0.2)  # звук проигрыша или выигрыша
+    s.play()
+
+    sound1 = pygame.mixer.Sound('data/обезьяны.mp3')
+    sound1.set_volume(0.15)
 
     # скроем системный курсор
     pygame.mouse.set_visible(False)
@@ -122,31 +150,6 @@ def end_screen(screen, score):  # окно после конца игры, пр�
     sprites.add(cursor_sprite)
     x, y = pygame.mouse.get_pos()
 
-    manager = pygame_gui.UIManager(WINDOW_SIZE)
-    clock = pygame.time.Clock()
-    pygame.mouse.set_visible(True)
-    switch = pygame_gui.elements.UIButton(
-        relative_rect=pygame.Rect((270, 180), (250, 50)),
-        text='Сыграть еще раз',
-        manager=manager)
-
-    print_score(score, screen)
-    if score < 100:
-        s = pygame.mixer.Sound('data/game_over.mp3')  # загружаем звук проигрыша
-        text = ['         Вы проиграли,', 'набрав меньше 100 очков!']
-    else:
-        s = pygame.mixer.Sound('data/game_win.mp3')  # загружаем звук выигрыша
-        text = ['         Вы выиграли,', 'набрав больше 100 очков!']
-
-    img = pygame.transform.scale(load_image('fon1.png'), (97, 133))
-    m = SpriteMonkey(img, 120, 250, sprites)
-
-    s.set_volume(0.2)  # звук проигрыша или выигрыша
-    s.play()
-
-    sound1 = pygame.mixer.Sound('data/обезьяны.mp3')
-    sound1.set_volume(0.15)
-
     run = True
     while run:
         time_delta = clock.tick(60) / 1000.0
@@ -156,7 +159,7 @@ def end_screen(screen, score):  # окно после конца игры, пр�
             if event.type == pygame.USEREVENT:
                 if event.user_type == pygame_gui.UI_BUTTON_PRESSED:
                     if event.ui_element == switch:
-                        m = True
+                        fl = True
                         run = False
             if event.type == pygame.MOUSEMOTION:
                 x, y = event.pos
@@ -168,19 +171,21 @@ def end_screen(screen, score):  # окно после конца игры, пр�
         cursor_sprite.rect.y = y - 25
         manager.update(time_delta)
         screen.blit(fon, (0, 0))
+        print_score(score, screen)
+        print_text(screen, text)
         manager.draw_ui(screen)
         sprites.draw(screen)
         sprites.update()
-        print_text(screen, text)
         pygame.display.update()
         pygame.display.flip()
-    if m:
+    if fl:
         main()
     else:
         pygame.display.quit()  # закрываем игру
 
 
 def minus_point(t):
+    # функция отнятия попытки
     global fail, banana_sprites, pol, left_tree, top, right_tree, palma
     if t == 'pol':
         pol = False
@@ -210,13 +215,15 @@ def print_score(score, screen):
     screen.blit(string_rendered, intro_rect)
 
 
-# функция создания обезьяны
+# функция создания обезьяны (случайной)
 def generation_monkey(cur, all_sprites, monkeys):
     global pol, left_tree, top, right_tree, palma
     d = {1: pol, 2: left_tree, 3: right_tree, 4: palma, 5: top}
     if False not in [pol, left_tree, right_tree, palma, top]:
+        # если все места для обезьян заняты, то не делаем ничего
         return
     while True:
+        # иначе выбираем случайное число (пока соответсвующее ему место не окажется свободным)
         a = rd.randint(1, 5)
         if not d[a]:
             break
@@ -381,7 +388,6 @@ def main():
 
     end = False
     fail = 5  # количество допустимых пропусков обезьян
-    pygame.display.set_caption('Hungry Monkeys')  # Изменяем заголовок окна
     # подключаемся к базе данных
     con = sqlite3.connect("data/images.db")
     cur = con.cursor()
